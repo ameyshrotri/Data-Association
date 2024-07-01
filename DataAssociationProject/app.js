@@ -1,4 +1,6 @@
 const express = require("express");
+const crypto = require("crypto");
+
 const app = express();
 const path = require("path");
 
@@ -9,16 +11,31 @@ const bcrypt = require("bcrypt");
 const { log } = require("console");
 const jwt = require("jsonwebtoken");
 const post = require("./models/post");
+const upload = require("./config/multerconfig");
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, "public")));
 app.use(cookieParser());
 
 app.get("/", (req, res) => {
   res.render("index");
+});
+
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+app.get("/profile/upload", (req, res) => {
+  res.render("profileupload");
+});
+
+app.post("/upload", isLoggedIn, upload.single("image"), async (req, res) => {
+  let user = await userModel.findOne({ email: req.user.email });
+  user.profilepic = `images/uploads/${req.file.filename}`; // Save the relative path
+  await user.save();
+  res.redirect("/profile");
 });
 
 app.get("/profile", isLoggedIn, async (req, res) => {
@@ -96,7 +113,8 @@ app.post("/register", async (req, res) => {
       });
       let token = jwt.sign({ email: email, userid: user._id }, "shhhh");
       res.cookie("token", token);
-      res.send("registered");
+
+      res.redirect("/login");
     });
   });
 });
@@ -112,7 +130,7 @@ app.post("/login", async (req, res) => {
       let token = jwt.sign({ email: email, userid: user._id }, "shhhh");
       res.cookie("token", token);
       res.status(200).redirect("/profile");
-    } else res.redirect("/login");
+    } else res.redirect("/profile");
   });
 });
 
